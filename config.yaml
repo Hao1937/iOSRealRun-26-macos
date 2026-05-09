@@ -1,0 +1,4 @@
+v: 4.4
+routeConfig: "ZJGEast.txt"
+libimobiledeviceDir: "libimobiledevice"
+imageDir: "DeveloperDiskImage"
