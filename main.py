@@ -60,5 +60,5 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except Exception as exc:
-        logging.error('%s', exc)
+        logging.exception('运行失败：%s', exc)
         raise SystemExit(1)

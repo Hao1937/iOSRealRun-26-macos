@@ -10,3 +10,5 @@ DeveloperDiskImage/
 *.pem
 *.key
 .env
+
+logs/
