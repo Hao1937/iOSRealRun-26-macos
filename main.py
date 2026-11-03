@@ -1,95 +1,56 @@
-import signal
-import logging
-import coloredlogs
-import os
+"""macOS/Windows entry point. Ctrl+C clears location before closing the tunnel."""
+import argparse
 import asyncio
+import contextlib
+import logging
+import signal
 
-
-from init import init
-from init import tunnel
-from init import route
-
-import run
+import coloredlogs
+from init import init, route, tunnel
 import config
+import run
 
 
-debug = os.environ.get("DEBUG", False)
-
-coloredlogs.install(level=logging.INFO)
-logging.getLogger('wintun').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('quic').setLevel(logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('asyncio').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('zeroconf').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('parso.cache').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('parso.cache.pickle').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('parso.python.diff').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('humanfriendly.prompts').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('blib2to3.pgen2.driver').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-logging.getLogger('urllib3.connectionpool').setLevel(
-    logging.DEBUG if debug else logging.WARNING)
-
-
-async def main():
-    logger = logging.getLogger(__name__)
-    coloredlogs.install(level=logging.INFO)
-    logger.setLevel(logging.INFO)
-    if debug:
-        logger.setLevel(logging.DEBUG)
-        coloredlogs.install(level=logging.DEBUG)
-
+async def main(check=False):
+    loc = route.get_route()
+    if check:
+        sampled = run.fixLockT(loc, config.config.v, 0.2)
+        print(f'环境和路线检查通过：{len(loc)} 个坐标点，{len(sampled)} 个采样点，{config.config.v} m/s')
+        return
     version = await init.init()
-    major_version = int(version.split(".")[0])
-    logger.info("init done")
-
     process = None
-    address = None
-    port = None
-    if major_version >= 17:
-        logger.info("trying to start tunnel")
-        original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-        process, address, port = tunnel.tunnel()
-        signal.signal(signal.SIGINT, original_sigint_handler)
+    drain = None
+    stopped = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        with contextlib.suppress(NotImplementedError):
+            loop.add_signal_handler(sig, stopped.set)
     try:
-        logger.debug(f"tunnel address: {address}, port: {port}")
-
-        loc = route.get_route()
-        logger.info(f"got route from {config.config.routeConfig}")
-
-        try:
-            print(f"已开始模拟跑步，速度大约为 {config.config.v} m/s")
-            print("会无限循环，按 Ctrl+C 退出")
-            print("请勿直接关闭窗口，否则无法还原正常定位")
-            if major_version >= 17:
-                await run.run(address, port, loc, config.config.v)
-            else:
-                await run.run_legacy(loc, config.config.v)
-        except KeyboardInterrupt:
-            logger.debug("get KeyboardInterrupt (inner)")
-            if process is not None:
-                logger.debug(f"Is process alive? {process.is_alive()}")
-        finally:
-            if process is not None:
-                logger.debug(f"Is process alive? {process.is_alive()}")
-            logger.debug("Start to clear location")
-
-    except KeyboardInterrupt:
-        logger.debug("get KeyboardInterrupt (outer)")
+        if int(version.split('.')[0]) >= 17:
+            process, address, port = await tunnel.tunnel(version)
+            drain = asyncio.create_task(tunnel.drain_output(process))
+            await run.run(address, port, loc, config.config.v,
+                          stop_requested=stopped.is_set, clear_on_finish=True)
+        else:
+            await run.run_legacy(loc, config.config.v,
+                                 stop_requested=stopped.is_set, clear_on_finish=True)
     finally:
         if process is not None:
-            logger.debug(f"Is process alive? {process.is_alive()}")
-            logger.debug("terminating tunnel process")
-            process.terminate()
-            logger.info("tunnel process terminated")
-        print("Bye")
+            await tunnel.stop_tunnel(process)
+        if drain is not None:
+            await drain
+        print('程序已退出。')
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='iOSRealRun macOS — Ctrl+C 停止并恢复定位')
+    parser.add_argument('--check', action='store_true', help='只检查环境和路线，不连接设备或修改定位')
+    args = parser.parse_args()
+    coloredlogs.install(level=logging.INFO)
+    try:
+        asyncio.run(main(args.check))
+    except KeyboardInterrupt:
+        pass
+    except Exception as exc:
+        logging.error('%s', exc)
+        raise SystemExit(1)

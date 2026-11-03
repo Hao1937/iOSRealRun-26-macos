@@ -5,3 +5,8 @@ __pycache__/
 .venv/
 *.pyc
 *.log
+DeveloperDiskImage/
+.DS_Store
+*.pem
+*.key
+.env

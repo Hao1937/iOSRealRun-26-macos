@@ -3,7 +3,7 @@ run.py
 automatically run the route
 """
 
-"""修正坐标误差，百度取点使用 BD-09 坐标系，iOS使用 WGS-09 坐标系，进行转换"""
+"""修正坐标误差，百度取点使用 BD-09 坐标系，iOS使用 WGS-84 坐标系，进行转换"""
 import math
 import time
 import random

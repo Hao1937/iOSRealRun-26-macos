@@ -1,57 +1,47 @@
+"""Own the actual tunnel subprocess so failures and shutdown cannot orphan it."""
+import asyncio
+import logging
+import os
 import re
 import sys
-import logging
-import subprocess
-import multiprocessing
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-def start_tunnel(queue):
-    command = [sys.executable, '-m', 'pymobiledevice3', 'lockdown', 'start-tunnel']
+async def stop_tunnel(process):
+    if process.returncode is None:
+        process.terminate()
+        try:
+            await asyncio.wait_for(process.wait(), 5)
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
 
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True
+
+async def tunnel(version, timeout=60):
+    parts = tuple(int(p) for p in version.split('.')[:2])
+    group = 'lockdown' if parts >= (17, 4) else 'remote'
+    process = await asyncio.create_subprocess_exec(
+        sys.executable, '-u', '-m', 'pymobiledevice3', group, 'start-tunnel',
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+        start_new_session=os.name != "nt",
     )
 
-    logging.info("Tunnel started")
+    async def read_address():
+        while line := await process.stdout.readline():
+            output = line.decode(errors='replace').strip()
+            logging.info('%s', output)
+            match = re.search(r'--rsd\s+(\S+)\s+(\d+)', output)
+            if match:
+                return match.group(1), int(match.group(2))
+        raise RuntimeError('隧道提前退出，请检查设备连接、开发者模式和管理员权限。')
 
-    rsd_pattern = re.compile(r"--rsd (\S+) (\d+)")
-    address, port = None, None
-
-    while True:
-        output = process.stdout.readline().strip()
-        if output:
-            logging.info(output)
-
-        match = rsd_pattern.search(output)
-        if match:
-            address, port = match.group(1), int(match.group(2))
-            queue.put((address, port))
-            logging.info(f"RSD Address: {address}, RSD Port: {port}")
-            break
-
-    process.wait()
-
-def tunnel():
-    queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=start_tunnel, args=(queue,))
-    process.start()
-    
     try:
-        result = queue.get(timeout=20)
-        if result is None:
-            raise RuntimeError("❌ 无法建立隧道连接")
-        address, port = result
-        
-        return process, address, port
-    except Exception as e:
-        logging.error(f"❌ 隧道建立失败: {e}")
-        process.terminate()
-        process.join(timeout=2)
-        if process.is_alive():
-            process.kill()
+        address, port = await asyncio.wait_for(read_address(), timeout)
+    except BaseException:
+        await stop_tunnel(process)
+        raise
+    return process, address, port
 
-    return None, None, None
+
+async def drain_output(process):
+    while line := await process.stdout.readline():
+        logging.info('%s', line.decode(errors='replace').strip())

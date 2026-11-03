@@ -1,84 +1,59 @@
-# iOSRealRun-26
+# iOSRealRun-26-macos
 
-本项目基于 [iOSRealRun-cli-18](https://github.com/MTDickens/iOSRealRun-cli-18) 修改而来，兼容了26版系统
+面向 **macOS** 的 iOS / iPadOS 路线定位模拟工具。基于 [BixingWu/iOSRealRun-26](https://github.com/BixingWu/iOSRealRun-26)，上游源自 [MTDickens/iOSRealRun-cli-18](https://github.com/MTDickens/iOSRealRun-cli-18)。保留上游 MPL-2.0 许可证。
 
-测试环境：
-- 操作系统：Windows11
-- Python版本：3.10
-- iPad OS版本：26.4
+此版本补齐 Windows 复制目录缺失的连接及路线模块，增加 macOS 启动器、独立 Python 环境、与工作目录无关的配置加载、隧道超时及进程清理，以及退出时的定位清除。
 
-## 用法简介
+## macOS 启动
 
-### 前置条件
+1. 安装 Python **3.12**（也可使用 3.10–3.13）。如已安装 Homebrew：`brew install python@3.12`。
+2. USB 连接 iPhone / iPad，解锁并信任此 Mac，在设备「设置 → 隐私与安全性」中开启开发者模式，按提示重启。
+3. 在终端进入本项目，运行：
 
-1. 系统是 `Windows` 或 `MacOS`
-2. iPhone 或 iPad 系统版本为26版
-3. Windows 需要安装 iTunes
-4. 已安装 `Python3` 和 `pip3`
+   ```bash
+   ./Start-iOSRealRun.command
+   ```
 
-### 步骤
+   也可在 Finder 双击 `Start-iOSRealRun.command`。下载后若没有执行权限，先运行 `chmod +x Start-iOSRealRun.command`。
 
-1. 克隆本项目到本地并进入项目目录
+启动器在 `.venv` 中安装依赖、检查路线、挂载开发者镜像，然后请求 Mac 登录密码建立隧道。**不要用 sudo 启动整个脚本**。从 Windows 复制的 `.pvenv` 不可复用，启动器不会使用它。macOS 不需要安装 iTunes。
 
-2. 安装依赖（建议使用虚拟环境）
+4. 按 **Ctrl+C** 停止。程序会尝试清除模拟定位，再关闭隧道。不要直接关闭窗口或拔线；断线时清除可能失败，如定位未恢复，请重启设备。
 
-    ```shell
-    conda create -n fake python=3.10 -y
-    conda activate fake
-    pip install -r requirements.txt
-    ```
-    
-3. 修改配置和路线文件 （见 [这里](https://github.com/iOSRealRun/iOSRealRun-cli/blob/main/README.md#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95) 的 4、5、7 步）
-  
-    > 当前项目已有
-    >
-    > - `ZJGEast.txt`：紫金港东操场
-    > - `ZJGWest.txt`：紫金港西操场
-    > - `YuQuan.txt`：玉泉操场
-    > - `HaiNing.txt`：海宁操场
-    >
-    > 在`config.yaml`中修改
-    >
-    > ```yaml
-    > v: 4.4
-    > routeConfig: "ZJGEast.txt" # 修改为对应路线名即可
-    > libimobiledeviceDir: "libimobiledevice"
-    > imageDir: "DeveloperDiskImage"
-    > ```
-    
-4. 将设备连接到电脑，解锁，如果请求信任的提示框，请点击信任
+仅检查软件环境和路线，不连接设备、不改定位：
 
-5. 打开终端（cmd 或 PowerShell），执行以下命令获取DDI
-    ```shell
-    pymobiledevice3 mounter auto-mount
-    ```
-    
-6. 运行程序
-  
-  
-    Windows **以管理员身份** 打开终端（cmd 或 PowerShell），先进入项目目录，然后执行以下命令 
-    ```shell
-    python main.py
-    ```
-    MacOS 打开终端，先进入项目目录，然后执行以下命令  
-    ```shell
-    sudo python3 main.py
-    ```
-    
-    > 需要 管理员 或 root 权限是因为需要创建 tun 设备  
+```bash
+./Start-iOSRealRun.command --check
+```
 
-7. 按照提示操作，如果一直说没有设备连接，Windows请确保 iTunes 已安装（可能需要打开），重新运行程序，在第3步时请确保设备已连接，解锁并信任
+已挂载镜像时，可用 `./Start-iOSRealRun.command --skip-mount`。
 
-8. 结束请务必使用 `Ctrl + C` 终止程序，否则无法恢复定位
+## 配置
 
-9. 如果定位未恢复，可以重启手机解决
+编辑 `config.yaml`：
 
-### 自定义配置文件
+```yaml
+v: 4.4                     # 速度，单位 m/s
+routeConfig: "ZJGEast.txt"  # 相对于配置文件所在目录
+```
 
-- 若希望修改速度，请在 config.yaml 中修改 v
-    - 默认的 `4.2 m/s`，就是大约 `4 min/km` 的水平
-- 若需修改配置文件，请在 config.yaml 中修改 routeConfig
+附带 `ZJGEast.txt`、`ZJGWest.txt`、`YuQuan.txt`、`HaiNing.txt` 四条示例路线。路线格式为逗号分隔的坐标字典（不加外层方括号）：
 
-### 一键运行
+```text
+{"lng": 120.123, "lat": 30.123},
+{"lng": 120.124, "lat": 30.124}
+```
 
-Windows系统可以尝试当前文件目录下的.bat脚本，一键开始跑步
+沿用上游 **BD-09** 输入坐标格式，运行时转换为 WGS-84；不要直接填入 WGS-84 坐标。路线循环运行直到 Ctrl+C。
+
+## 验证范围及排错
+
+- 已在 Apple Silicon macOS / Python 3.12 完成依赖导入、配置读取、四条路线解析和离线采样，4 项针对性测试通过；`--check` 不证明设备端定位已成功。
+- iOS / iPadOS 26 的实际兼容性需要连接对应设备验证。本仓库不将上游环境声明当作本机真机测试结果。
+- iOS 17.4+ 使用 `lockdown start-tunnel`；17.0–17.3 使用 `remote start-tunnel`。隧道最长等待 60 秒，失败后退出。
+- 设备未发现：检查 USB 数据线、设备解锁、信任和开发者模式。
+- 镜像挂载失败：先运行 `.venv/bin/python -m pymobiledevice3 mounter auto-mount` 查看具体错误，确认网络可下载匹配镜像。
+- 固定 `pymobiledevice3==9.12.0`，防止依赖升级造成接口变化。Python 3.14 不在本启动器支持范围内。
+- 原 Windows 启动文件仍保留，本次适配主要验证 macOS。
+
+设备连接及隧道机制参考 [pymobiledevice3 官方文档](https://github.com/doronz88/pymobiledevice3)。

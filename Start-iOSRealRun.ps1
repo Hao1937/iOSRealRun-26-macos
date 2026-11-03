@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $VenvDir = Join-Path $ProjectDir ".pvenv"
 $PythonExe = Join-Path $VenvDir "Scripts\python.exe"
+$LocalDdiDir = Join-Path $ProjectDir "DeveloperDiskImage\PersonalizedImages\Xcode_iOS_DDI_Personalized"
 
 function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -85,11 +86,39 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not $SkipMount) {
     Write-Host ""
-    Write-Host "[1/2] Mounting DeveloperDiskImage if needed..."
-    & $PythonExe -m pymobiledevice3 mounter auto-mount
+    Write-Host "[1/2] Checking DeveloperDiskImage..."
+
+    $mountedImages = (& $PythonExe -m pymobiledevice3 mounter list 2>&1 | Out-String)
+    $isDeveloperImageMounted = (
+        $LASTEXITCODE -eq 0 -and
+        $mountedImages -match '"IsMounted"\s*:\s*true' -and
+        $mountedImages -match '"MountPath"\s*:\s*"/System/Developer"'
+    )
+
+    if ($isDeveloperImageMounted) {
+        Write-Host "DeveloperDiskImage is already mounted."
+    } else {
+        $image = Join-Path $LocalDdiDir "Image.dmg"
+        $trustCache = Join-Path $LocalDdiDir "Image.dmg.trustcache"
+        $buildManifest = Join-Path $LocalDdiDir "BuildManifest.plist"
+        $localDdiReady = (
+            (Test-Path -LiteralPath $image) -and
+            (Test-Path -LiteralPath $trustCache) -and
+            (Test-Path -LiteralPath $buildManifest)
+        )
+
+        if ($localDdiReady) {
+            Write-Host "Mounting verified local DeveloperDiskImage..."
+            & $PythonExe -m pymobiledevice3 mounter mount-personalized $image $trustCache $buildManifest
+        } else {
+            Write-Host "Local DeveloperDiskImage not found. Trying online auto-mount..."
+            & $PythonExe -m pymobiledevice3 mounter auto-mount
+        }
+    }
+
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "DeveloperDiskImage mount command failed. Check that the iPad is connected, unlocked, trusted, and Developer Mode is enabled." -ForegroundColor Yellow
+        Write-Host "DeveloperDiskImage mount command failed. Check that the iPhone/iPad is connected, unlocked, trusted, and Developer Mode is enabled." -ForegroundColor Yellow
         Read-Host "Press Enter to close"
         exit $LASTEXITCODE
     }
