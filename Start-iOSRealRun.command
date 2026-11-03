@@ -22,12 +22,21 @@ if [[ ! -x .venv/bin/python ]]; then
   "$PYTHON" -m venv .venv
 fi
 PYTHON="$PWD/.venv/bin/python"
+# Choose before dependency installation, device mounting or password prompts.
+if [[ "${1:-}" == '--check' ]]; then
+  "$PYTHON" -m pip install -r requirements.txt
+  "$PYTHON" main.py --check
+  exit 0
+fi
+ROUTE_SELECTION="$(mktemp)"
+trap 'rm -f "$ROUTE_SELECTION"' EXIT
+"$PYTHON" "$PWD/route_picker.py" --output "$ROUTE_SELECTION"
+SELECTED_ROUTE="$(cat "$ROUTE_SELECTION")"
 "$PYTHON" -m pip install -r requirements.txt
-"$PYTHON" main.py --check
-if [[ "${1:-}" == '--check' ]]; then exit 0; fi
+"$PYTHON" main.py --check --route "$SELECTED_ROUTE"
 if [[ "${1:-}" != '--skip-mount' ]]; then
   "$PYTHON" -m pymobiledevice3 mounter auto-mount
 fi
 echo '请保持设备连接、解锁并信任此 Mac，开启开发者模式。'
 echo '接下来输入 Mac 登录密码以建立隧道；按 Ctrl+C 停止并恢复定位。'
-sudo -- "$PYTHON" "$PWD/main.py"
+sudo -- "$PYTHON" "$PWD/main.py" --route "$SELECTED_ROUTE"

@@ -4,6 +4,9 @@ import asyncio
 import contextlib
 import logging
 import signal
+from pathlib import Path
+
+from route_picker import select_route
 
 import coloredlogs
 from init import init, route, tunnel
@@ -11,7 +14,11 @@ import config
 import run
 
 
-async def main(check=False):
+async def main(check=False, route_file=None):
+    if route_file:
+        config.config.routeConfig = str(Path(route_file).resolve())
+    elif not check:
+        config.config.routeConfig = str(select_route(config.config.routeConfig))
     loc = route.get_route()
     if check:
         sampled = run.fixLockT(loc, config.config.v, 0.2)
@@ -45,10 +52,11 @@ async def main(check=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='iOSRealRun macOS — Ctrl+C 停止并恢复定位')
     parser.add_argument('--check', action='store_true', help='只检查环境和路线，不连接设备或修改定位')
+    parser.add_argument('--route', help='指定路线文件，跳过交互选择')
     args = parser.parse_args()
     coloredlogs.install(level=logging.INFO)
     try:
-        asyncio.run(main(args.check))
+        asyncio.run(main(args.check, args.route))
     except KeyboardInterrupt:
         pass
     except Exception as exc:

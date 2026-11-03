@@ -16,7 +16,9 @@
 
    也可在 Finder 双击 `Start-iOSRealRun.command`。下载后若没有执行权限，先运行 `chmod +x Start-iOSRealRun.command`。
 
-启动器在 `.venv` 中安装依赖、检查路线、挂载开发者镜像，然后请求 Mac 登录密码建立隧道。**不要用 sudo 启动整个脚本**。从 Windows 复制的 `.pvenv` 不可复用，启动器不会使用它。macOS 不需要安装 iTunes。
+启动后首先显示路线选择菜单：用 **↑/↓** 选择，**Enter** 确认，**q / Esc** 取消。菜单显示四条示例路线，也会自动发现项目目录下新增的 `.txt` 路线文件（排除 `requirements.txt`）。终端不支持方向键菜单时使用数字选择。
+
+选定后，启动器在 `.venv` 中安装依赖、检查所选路线、挂载开发者镜像，然后请求 Mac 登录密码建立隧道。**不要用 sudo 启动整个脚本**。从 Windows 复制的 `.pvenv` 不可复用，启动器不会使用它。macOS 不需要安装 iTunes。
 
 4. 按 **Ctrl+C** 停止。程序会尝试清除模拟定位，再关闭隧道。不要直接关闭窗口或拔线；断线时清除可能失败，如定位未恢复，请重启设备。
 
@@ -27,6 +29,8 @@
 ```
 
 已挂载镜像时，可用 `./Start-iOSRealRun.command --skip-mount`。
+
+直接运行 `main.py` 也会先选择路线；指定 `--route /path/to/route.txt` 可跳过菜单。`--check` 保持非交互，选择只对本次运行生效，不修改配置文件。
 
 ## 配置
 
