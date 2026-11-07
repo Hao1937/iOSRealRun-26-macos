@@ -1,4 +1,4 @@
 pymobiledevice3==11.50.0
-PyYAML==6.0.2
+PyYAML==6.0.3
 geopy==2.4.1
 coloredlogs==15.0.1
