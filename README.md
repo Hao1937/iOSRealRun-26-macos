@@ -57,9 +57,21 @@ routeConfig: "ZJGEast.txt"  # 相对于配置文件所在目录
 - iOS 17.4+ 使用 `lockdown start-tunnel`；17.0–17.3 使用 `remote start-tunnel`。隧道最长等待 60 秒，失败后退出。
 - 设备未发现：检查 USB 数据线、设备解锁、信任和开发者模式。
 - 镜像挂载失败：先运行 `.venv/bin/python -m pymobiledevice3 mounter auto-mount` 查看具体错误，确认网络可下载匹配镜像。
-- 固定 `pymobiledevice3==9.12.0`，防止依赖升级造成接口变化。Python 3.14 不在本启动器支持范围内。
+- 固定 `pymobiledevice3==11.50.0`（iOS 27+ 自动使用 Cryptex 开发者镜像），防止依赖升级造成接口变化。Python 3.14 不在本启动器支持范围内。
 - 原 Windows 启动文件仍保留，本次适配主要验证 macOS。
 
 设备连接及隧道机制参考 [pymobiledevice3 官方文档](https://github.com/doronz88/pymobiledevice3)。
 
 启动器在选定路线后将输出保存到 `logs/run-日期时间-进程号.log`；报错时会显示日志路径。日志不会提交到 GitHub。若下载镜像出现 SSL 错误，需检查到 `raw.githubusercontent.com` 的网络连接；pip 更新提示不是启动失败原因。
+
+## iOS 27 / 27.3 beta
+
+设备库已升级至 11.50.0，由其根据系统版本选择镜像：iOS 27+ 使用 Cryptex 安装，较旧系统继续使用对应的挂载流程。已验证 Python 接口导入、离线路线及自动化测试；27.3 beta 真机的镜像安装、定位和恢复仍需重新连接设备后验证。
+
+系统更新后需要重新准备镜像。连接并解锁手机、确认信任和开发者模式后，可先执行：
+
+```bash
+./Start-iOSRealRun.command --prepare-only
+```
+
+选好路线后只检查环境并准备镜像，不开始模拟定位。成功后再正常启动。首次下载及 Apple 签名需要联网；准备过程超过 10 分钟会终止并显示排错提示，Ctrl+C 可取消。设备库升级不代表所有 beta 版本都已验证兼容。

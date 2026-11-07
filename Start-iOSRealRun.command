@@ -50,6 +50,10 @@ echo "本次日志：$LOG_FILE"
 if [[ "${1:-}" != '--skip-mount' ]]; then
   "$PYTHON" "$PWD/prepare_device.py"
 fi
+if [[ "${1:-}" == '--prepare-only' ]]; then
+  echo '设备准备完成。未启动模拟定位。'
+  exit 0
+fi
 echo '请保持设备连接、解锁并信任此 Mac，开启开发者模式。'
 echo '接下来输入 Mac 登录密码以建立隧道；按 Ctrl+C 停止并恢复定位。'
 sudo -- "$PYTHON" "$PWD/main.py" --route "$SELECTED_ROUTE"
