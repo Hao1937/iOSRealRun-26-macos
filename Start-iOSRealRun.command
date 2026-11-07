@@ -36,10 +36,10 @@ mkdir -p logs
 LOG_FILE="$PWD/logs/run-$(date +%Y%m%d-%H%M%S)-$$.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 finish() {
-  status=$?
+  run_exit_code=$?
   rm -f "$ROUTE_SELECTION"
-  if [[ "$status" -ne 0 ]]; then
-    echo "启动或运行失败（退出码 $status）。日志：$LOG_FILE"
+  if [[ "${run_exit_code}" -ne 0 ]]; then
+    echo "启动或运行失败（退出码 ${run_exit_code}）。日志：$LOG_FILE"
   fi
 }
 trap finish EXIT

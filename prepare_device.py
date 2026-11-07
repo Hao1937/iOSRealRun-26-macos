@@ -1,5 +1,6 @@
 """Reuse an already mounted DDI before invoking the network-based auto-mounter."""
 import json
+from pathlib import Path
 import subprocess
 import sys
 
@@ -24,7 +25,7 @@ def prepare_device():
         return
     print('设备尚未挂载开发者镜像，正在准备（iOS 27+ 自动使用 Cryptex）……', flush=True)
     print('首次需要联网下载并向 Apple 签名；请保持设备解锁和连接，最多等待 10 分钟。', flush=True)
-    subprocess.run([sys.executable, '-u', '-m', 'pymobiledevice3', 'mounter', 'auto-mount'], check=True, timeout=600)
+    subprocess.run([sys.executable, '-u', str(Path(__file__).with_name('mount_device.py'))], check=True, timeout=600)
     # The upstream CLI can print an error while returning exit status zero.
     if not developer_image_mounted(list_images()):
         raise RuntimeError('开发者镜像未成功挂载，请检查设备开发者模式和镜像下载网络。')
